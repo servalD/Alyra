@@ -28,14 +28,14 @@ contract Voting is Ownable{
         VotesTallied
     }
     // Winner ID
-    uint winningProposalId;
+    uint private winningProposalId;
     // Status ID
-    WorkflowStatus StatusId = WorkflowStatus.RegisteringVoters;
+    WorkflowStatus private StatusId = WorkflowStatus.RegisteringVoters;
     //Voter mapping
-    mapping (address => Voter) Voters;
-    uint votersCount;
+    mapping (address => Voter) private Voters;
+    uint private votersCount;
     // Proposal listing
-    Proposal[] Proposals;
+    Proposal[] private Proposals;
     // Events
     event VoterRegistered(address voterAddress);
     event ProposalsRegistrationStarted();
