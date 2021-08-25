@@ -155,7 +155,8 @@ contract Voting is Ownable{
     }
     
     function getVotedProposalIdByAddress(address _address) public view onlyRegistered returns (uint){
-        require(Voters[_address].hasVoted, '');
+        require(StatusId==WorkflowStatus.VotesTallied || StatusId==WorkflowStatus.VotingSessionStarted || StatusId==WorkflowStatus.VotingSessionEnded, 'Vote not started yet');
+        require(Voters[_address].hasVoted, 'This address has not voted');
         return Voters[_address].votedProposalId;
     }
     
