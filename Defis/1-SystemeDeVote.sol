@@ -1,4 +1,4 @@
-// Defis/1-SystemeDeVote.sol
+// contracts/Defi_SystemeDeVote.sol
 // SPDX-License-Identifier: MIT
 
 pragma solidity 0.8.0;
@@ -13,11 +13,12 @@ contract Voting is Ownable{
         bool hasVoted;
         uint votedProposalId;
     }
-        
+      
     struct Proposal {
         string description;
         uint voteCount;
     }
+    
     // Enumeration
     enum WorkflowStatus {
         RegisteringVoters,
@@ -26,7 +27,7 @@ contract Voting is Ownable{
         VotingSessionStarted,
         VotingSessionEnded,
         VotesTallied
-    }
+    } 
     // Winner ID
     uint private winningProposalId;
     // Status ID
@@ -36,6 +37,8 @@ contract Voting is Ownable{
     uint private votersCount;
     // Proposal listing
     Proposal[] private Proposals;
+    uint maxVoteCount = 0;
+    
     // Events
     event VoterRegistered(address voterAddress);
     event ProposalsRegistrationStarted();
@@ -55,7 +58,7 @@ contract Voting is Ownable{
     
     // I decided to use only one function insteed of specific status setter like "setProposalsRegistrationStartedStatus"
     // It ensure the owner respect the defined workflow.
-    function setNextWorkflowStatus() public onlyOwner{
+    function setNextWorkflowStatus() external onlyOwner{
         require(StatusId != WorkflowStatus.VotesTallied, 'The vote is already done');
         // keep the old status for the "WorkflowStatusChange" event.
         WorkflowStatus oldStatus = StatusId;
@@ -90,14 +93,7 @@ contract Voting is Ownable{
             // 4 => 5_ I did not launch the votes counting right after the VotingSessionEnded because there is two separated points in the exercice.
             // But all results are publique so the suspense would not be there anyway.
         else if (StatusId==WorkflowStatus.VotingSessionEnded){
-            // Vote counting. If there is a tie, the last of those wins.
-            uint maxVoteCount = 0;
-            for (uint i=0; i<Proposals.length; i++){
-                if (maxVoteCount<Proposals[i].voteCount){
-                    winningProposalId = i;
-                    maxVoteCount = Proposals[i].voteCount;
-                }
-            }
+
             StatusId = WorkflowStatus.VotesTallied;
             emit VotesTallied();
         }
@@ -105,12 +101,12 @@ contract Voting is Ownable{
     }
     
     // Get the current status of the vote as an ID (not very human readeable)
-    function getWorkflowStatus() public view onlyRegistered returns (WorkflowStatus) {
+    function getWorkflowStatus() external view onlyRegistered returns (WorkflowStatus) {
         return StatusId;
     }
     
     // Let the owner to register any etherum address to take part in the vote.
-    function authorize( address _address) public onlyOwner{
+    function authorize( address _address) external onlyOwner{
         require(StatusId==WorkflowStatus.RegisteringVoters, 'Unable to register anyone after the RegisteringVoters workflow status');
         require(Voters[_address].isRegistered==false, 'Address already registered');
         Voters[_address] = Voter({isRegistered: true, hasVoted: false, votedProposalId: 0});
@@ -120,20 +116,26 @@ contract Voting is Ownable{
     }
     
     // Registered address can add any proposition description at multiple times
-    function newProposal(string memory description) public onlyRegistered{
+    function newProposal(string memory description) external onlyRegistered{
         require(StatusId==WorkflowStatus.ProposalsRegistrationStarted, 'Unable to register any proposals. Proposals Registration not started or already ended');
         Proposals.push(Proposal({description: description, voteCount:0}));
         emit ProposalRegistered(Proposals.length-1);
     }
     
     // Registered address can vote for one of the registered proposals
-    function vote(uint votedProposalId) public onlyRegistered{
+    function vote(uint votedProposalId) external onlyRegistered{
         require(StatusId==WorkflowStatus.VotingSessionStarted, 'Unable to vote while the current workflow status is not VotingSessionStarted');
         require(Voters[msg.sender].hasVoted==false, 'You can t vote twice');
         require(Proposals.length>votedProposalId, 'votedProposalId doesn t exist');
         Proposals[votedProposalId].voteCount++;
         Voters[msg.sender].hasVoted = true;
         Voters[msg.sender].votedProposalId = votedProposalId;
+        Proposals[votedProposalId].voteCount += 1;
+        // Check the winning proposal
+        if (maxVoteCount<Proposals[votedProposalId].voteCount){
+            winningProposalId = votedProposalId;
+            maxVoteCount = Proposals[votedProposalId].voteCount;
+        }
         emit Voted(msg.sender, votedProposalId);
     }
     
@@ -144,17 +146,17 @@ contract Voting is Ownable{
     }
     
     // As explaned in the exercise, everyone can check the final details of the winning proposal so i did'n put the onlyRegistered modifier.
-    function getWinningProposalDescription() public view returns (string memory){
+    function getWinningProposalDescription() external view returns (string memory){
         require(StatusId==WorkflowStatus.VotesTallied, 'Vote not tallied yet');
         return getProposalDescriptionById(winningProposalId);
     }
     
-    function getProposalVoteCountById(uint ProposalId) public view onlyRegistered returns (uint){
+    function getProposalVoteCountById(uint ProposalId) external view onlyRegistered returns (uint){
         require(Proposals.length>ProposalId, 'votedProposalId doesn t exist');
         return Proposals[ProposalId].voteCount;
     }
     
-    function getVotedProposalIdByAddress(address _address) public view onlyRegistered returns (uint){
+    function getVotedProposalIdByAddress(address _address) external view onlyRegistered returns (uint){
         require(StatusId==WorkflowStatus.VotesTallied || StatusId==WorkflowStatus.VotingSessionStarted || StatusId==WorkflowStatus.VotingSessionEnded, 'Vote not started yet');
         require(Voters[_address].hasVoted, 'This address has not voted');
         return Voters[_address].votedProposalId;
