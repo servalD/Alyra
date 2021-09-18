@@ -1,9 +1,9 @@
 var Tx     = require('ethereumjs-tx').Transaction
 const Web3 = require('web3')
-const web3 = new Web3('https://ropsten.infura.io/v3/80ea0f21858e493d9032a8cb34354106')
+const web3 = new Web3('https://ropsten.infura.io/v3/MyID')
 
-const account1 = '0x795dD0AFFB37E91F5Fff919c14d3E1aDBe5C74D4' // Your account address 1
-const privateKey1 = Buffer.from('39e3f0e277b120ab858fb9e5d6cd6537efe3f7500a9e365dfdec6bf65041948c', 'hex')
+const account1 = 'ADDR' // Your account address 1
+const privateKey1 = Buffer.from('PK', 'hex')
 
 // Deploy the contract
 web3.eth.getTransactionCount(account1, (err, txCount) => {
