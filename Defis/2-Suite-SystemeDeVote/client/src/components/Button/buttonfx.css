@@ -1,0 +1,35 @@
+button.fx{
+    color: black; /* button text color */
+    /* outline: none; */
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid rgba(114, 100, 196, 0.694);
+    letter-spacing: 0.0625em;
+    /* padding: 8px 10px;  */
+    /* text-transform: uppercase; */
+    font: bold 16px 'Bitter', "Georgia";
+    line-height: 1;
+    position: relative;
+      display: inline-block;
+    /* margin-right: 20px; */
+    /* margin-bottom: 20px; */
+    cursor: pointer;
+      /* text-decoration: none;  */
+    overflow: hidden;
+    border-radius: 10px;
+    transition: all .1s;
+  }
+button.fx:hover{
+    color: rgb(143, 228, 252);
+    background: #7d000079;
+    border-top-width: 1px;
+    border-left-width: 0px;
+    border-right-width: 0px;
+    border-style: solid;
+    border-top-color: rgba(162, 148, 240, 0.694);
+}
+button.fx:active{
+    color: rgb(227, 249, 255);
+    transition: all .01s;
+    /* background-image: url('/Ripple-1s-200px.svg'); */
+}

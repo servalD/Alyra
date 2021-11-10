@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+
+<html>
+    <head>
+
+        <meta charset='utf-8'>
+        <meta http-equiv='X-UA-Compatible' content='IE=edge'>
+
+        <title>Storage Dapp</title>
+
+        <meta name='viewport' content='width=device-width, initial-scale=1'>
+
+        <script type="text/javascript" src="https://unpkg.com/web3@1.3.1/dist/web3.min.js"></script>
+        <script src="https://unpkg.com/@metamask/detect-provider/dist/detect-provider.min.js"></script>
+
+    </head>
+
+    <body>
+        Storage Dapp
+        <br  >
+        <button onclick="getNumber();">Print Number</button>
+        <button onclick="setNumber();">Set Number</button>
+        <br  /><br  />
+
+        Status: <span id="status">Loading...</span>
+
+        <script type="text/javascript">
+            async  function  loadWeb3() {
+                const  provider  =  await  detectEthereumProvider();
+                if (provider) {
+                        window.web3  =  new  Web3(provider);
+                        provider.enable()
+                    // handle no provider
+                    console.log("no provider");
+                }
+            }
+            async function loadContract() {
+                return await new window.web3.eth.Contract([
+                    {
+                        "inputs": [],
+                        "name": "retrieve",
+                        "outputs": [
+                            {
+                                "internalType": "uint256",
+                                "name": "",
+                                "type": "uint256"
+                            }
+                        ],
+                        "stateMutability": "view",
+                        "type": "function"
+                    },
+                    {
+                        "inputs": [
+                            {
+                                "internalType": "uint256",
+                                "name": "num",
+                                "type": "uint256"
+                            }
+                        ],
+                        "name": "store",
+                        "outputs": [],
+                        "stateMutability": "nonpayable",
+                        "type": "function"
+                    }], '0x4BEdEb109c7BD011f21578Ae0869Fa719854D68c');
+            }
+            async function getNumber() {
+                updateStatus('fetching Cool Number...');
+                const number = await window.contract.methods.retrieve().call();
+                updateStatus(`Number: ${number}`);
+            }
+            async function setNumber() {
+                const value = Math.floor(Math.random() * 100);
+                updateStatus(`Updating number with ${value}`);
+                const account = await getCurrentAccount();
+                
+                const number = await window.contract.methods.store(value).send({ from: account });
+                updateStatus('Updated.');
+            }
+            async function getCurrentAccount() {
+                console.log(window.web3.eth.accounts[0]);
+                const accounts = await window.web3.eth.getAccounts();
+                return accounts[0];
+            }
+
+            async function load() {
+                await loadWeb3();
+                window.contract = await loadContract();
+                updateStatus('Ready!');
+            }
+
+            function updateStatus(status) {
+                const statusEl = document.getElementById('status');
+                statusEl.innerHTML = status;
+                console.log(status);
+            }
+
+            load();
+        </script>
+
+    </body>
+</html>

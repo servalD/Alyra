@@ -1,0 +1,7 @@
+input[type='text'] {
+    border-radius: 10px;
+}
+
+textarea[type='text'] {
+    border-radius: 10px;
+}

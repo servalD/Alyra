@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+
+<html>
+<head>
+
+<meta charset='utf-8'>
+<meta http-equiv='X-UA-Compatible' content='IE=edge'>
+<meta name='viewport' content='width=device-width, initial-scale=1'>
+<title>TODO List Dapp</title>
+<script type="text/javascript" src="https://unpkg.com/web3@1.3.1/dist/web3.min.js"></script>
+<script src="https://unpkg.com/@metamask/detect-provider/dist/detect-provider.min.js"></script>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.0/jquery.min.js"></script>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-giJF6kkoqNQ00vy+HMDP7azOuL0xtbfIcaT9wjKHr8RbDVddVHyTfAAsrekwKmP1" crossorigin="anonymous">
+
+<style>
+    main {
+        margin-top: 60px;
+    }
+
+    #content {
+        display: none;
+    }
+
+    form {
+        width: 350px;
+        margin-bottom: 10px;
+    }
+
+    ul {
+        margin-bottom: 0px;
+    }
+
+    #completedTaskList  .content {
+        color: grey;
+        text-decoration: line-through;
+    }
+</style>
+
+</head>
+<body>
+    <nav class="navbar navbar-dark bg-dark">
+        <ul class="container-md">
+            <li>
+                <a class="navbar-brand col-sm-3 col-md-2 mr-0">Todo List Dapp</a>
+            </li>
+            <li>
+                <small><a class="navbar-text"><span id="account"></span></a></small>
+            </li>
+        </ul>
+    </nav>
+    <br>
+    <div class="container-fluid">
+        <div class="row">
+            <main role="main" class="col-lg-12 d-flex justify-content-center">
+                <div id="loader" class="text-center">
+                    <p class="text-center">Loading...</p>
+                </div>
+                <div id="content">
+                    <form onSubmit="createTask(); return false;">
+                        <input id="newTask" type="text" class="form-control" placeholder="Add task ..." required>
+                        <input type="submit" hidden="">
+                    </form>
+                    <ul id="taskList" class="list-unstyled">
+                        <div class="taskTemplate" class="checkbox" style="display: none">
+                            <label>
+                                <input type="checkbox"  />
+                                <span class="content">Task content goes here ...</span>
+                            </label>
+                        </div>
+                    </ul>
+                    <ul id="completedTaskList" class="list-unstyled">
+                    </ul>
+                </div>
+            </main>
+        </div>
+    </div>
+    <script type='text/javascript'>
+        let ethAddress;
+        let isAuthorised = false;
+        
+        async function load() {
+            console.log("Loading");
+            await signInMetamask();
+
+            window.web3 = new Web3(window.ethereum);
+            window.contract = await loadContract();
+            window.account  = await getCurrentAccount();
+
+            await render();
+        }
+
+        function handleAccountsChanged(accounts) {
+            if (accounts.length === 0) {
+                console.error('Not found accounts');
+            } else {
+                ethAddress = accounts[0];
+                
+                console.log('Your address: ', ethAddress);
+            }
+        }
+
+        async function signInMetamask () {
+            const provider = await detectEthereumProvider();
+
+            // @ts-ignore
+            if (provider !== window.ethereum) {
+            console.error('Do you have multiple wallets installed?');
+            }
+
+            if (!provider) {
+            console.error('Metamask not found');
+            return;
+            }
+
+            // MetaMask events
+            provider.on('accountsChanged', handleAccountsChanged);
+
+            provider.on('disconnect', () => {
+            console.log('disconnect');
+            isAuthorised = false;
+            });
+            
+            provider.on('chainIdChanged', chainId => console.log('chainIdChanged', chainId));
+
+            provider
+            .request({ method: 'eth_requestAccounts' })
+            .then(async params => {
+                handleAccountsChanged(params);
+                isAuthorised = true;
+            })
+            .catch(err => {
+                isAuthorised = false;
+                
+                if (err.code === 4001) {
+                console.error('Please connect to MetaMask.');
+                } else {
+                console.error(err);
+                }
+            });
+        }
+
+        async function loadWeb3() {
+            console.log("Loading WEB 3");
+            const provider = await detectEthereumProvider()
+
+            if (provider) {
+                // handle provider
+                window.web3 = new Web3(provider);
+                window.loading = false; 
+                console.log("Loading WEB 3 ok ");  
+                console.log(window.web3);            
+            } else {
+                // handle no provider
+                console.log("no provider")
+            }
+        }
+
+        async function loadContract() {
+            return await new window.web3.eth.Contract([
+                {
+                    "inputs": [],
+                    "stateMutability": "nonpayable",
+                    "type": "constructor"
+                },
+                {
+                    "anonymous": false,
+                    "inputs": [
+                        {
+                            "indexed": false,
+                            "internalType": "uint256",
+                            "name": "id",
+                            "type": "uint256"
+                        },
+                        {
+                            "indexed": false,
+                            "internalType": "bool",
+                            "name": "completed",
+                            "type": "bool"
+                        }
+                    ],
+                    "name": "TaskCompleted",
+                    "type": "event"
+                },
+                {
+                    "anonymous": false,
+                    "inputs": [
+                        {
+                            "indexed": false,
+                            "internalType": "uint256",
+                            "name": "id",
+                            "type": "uint256"
+                        },
+                        {
+                            "indexed": false,
+                            "internalType": "string",
+                            "name": "content",
+                            "type": "string"
+                        },
+                        {
+                            "indexed": false,
+                            "internalType": "bool",
+                            "name": "completed",
+                            "type": "bool"
+                        }
+                    ],
+                    "name": "TaskCreated",
+                    "type": "event"
+                },
+                {
+                    "inputs": [
+                        {
+                            "internalType": "string",
+                            "name": "_content",
+                            "type": "string"
+                        }
+                    ],
+                    "name": "createTask",
+                    "outputs": [],
+                    "stateMutability": "nonpayable",
+                    "type": "function"
+                },
+                {
+                    "inputs": [],
+                    "name": "taskCount",
+                    "outputs": [
+                        {
+                            "internalType": "uint256",
+                            "name": "",
+                            "type": "uint256"
+                        }
+                    ],
+                    "stateMutability": "view",
+                    "type": "function"
+                },
+                {
+                    "inputs": [
+                        {
+                            "internalType": "uint256",
+                            "name": "",
+                            "type": "uint256"
+                        }
+                    ],
+                    "name": "tasks",
+                    "outputs": [
+                        {
+                            "internalType": "uint256",
+                            "name": "id",
+                            "type": "uint256"
+                        },
+                        {
+                            "internalType": "string",
+                            "name": "content",
+                            "type": "string"
+                        },
+                        {
+                            "internalType": "bool",
+                            "name": "completed",
+                            "type": "bool"
+                        }
+                    ],
+                    "stateMutability": "view",
+                    "type": "function"
+                },
+                {
+                    "inputs": [
+                        {
+                            "internalType": "uint256",
+                            "name": "_id",
+                            "type": "uint256"
+                        }
+                    ],
+                    "name": "toggleCompleted",
+                    "outputs": [],
+                    "stateMutability": "nonpayable",
+                    "type": "function"
+                }
+            ], '0x09f4D773d5725B10F2710A24403Adc700Aec7CDD');
+        }
+
+        async function getCurrentAccount() {
+            window.accounts = await ethereum.enable();
+            const accounts = await window.web3.eth.getAccounts();
+            console.log("Account Loading", accounts);
+            return accounts[0];
+        }
+
+        async function render() {
+            // Prevent double render
+            if (window.loading) {
+                return
+            }
+
+            // Update app loading state
+            setLoading(true);
+
+            // Render Account
+            $('#account').html(window.account);
+
+            // Render Tasks
+            await window.renderTasks();
+
+            // Update loading state
+            setLoading(false);
+        }
+
+        async function renderTasks() {
+            // Load the total task count from the blockchain
+            const taskCount = await window.contract.methods.taskCount().call();
+            const $taskTemplate = $('.taskTemplate');
+
+            // Render out each task with a new task template
+            for (var i = 1; i <= taskCount; i++) {
+                // Fetch the task data from the blockchain
+                const task = await window.contract.methods.tasks(i).call();
+                const taskId = task[0];
+                const taskContent = task[1];
+                const taskCompleted = task[2];
+
+                // Create the html for the task
+                const $newTaskTemplate = $taskTemplate.clone();
+                $newTaskTemplate.find('.content').html(taskContent);
+                $newTaskTemplate.find('input')
+                                .prop('name', taskId)
+                                .prop('checked', taskCompleted)
+                                .on('click', toggleCompleted);
+
+                // Put the task in the correct list
+                if (taskCompleted) {
+                    $('#completedTaskList').append($newTaskTemplate);
+                } else {
+                    $('#taskList').append($newTaskTemplate);
+                }
+
+                // Show the task
+                $newTaskTemplate.show();
+            }
+        }
+
+        async function createTask() {
+            setLoading(true);
+            const content = $('#newTask').val();
+
+            await window.contract.methods.createTask(content).send({ from: window.account });
+            window.location.reload();
+        }
+
+        async function toggleCompleted(e) {
+            setLoading(true);
+            const taskId = e.target.name;
+
+            await window.contract.methods.toggleCompleted(taskId).send({ from: window.account });
+            window.location.reload();
+        }
+
+        function setLoading(boolean) {
+            window.loading = boolean;
+            const loader = $('#loader');
+            const content = $('#content');
+
+            if (boolean) {
+                loader.show();
+                content.hide();
+            } else {
+                loader.hide();
+                content.show();
+            }
+        }
+
+        load();
+    </script>
+</body>
+</html>

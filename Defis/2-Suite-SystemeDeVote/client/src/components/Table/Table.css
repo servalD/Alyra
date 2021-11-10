@@ -1,0 +1,94 @@
+/* Table cells and headers: */
+td,
+th {
+    padding: 10px;
+    text-align: center;
+    /* transition: 0.35s; */
+}
+/* Smooth animations on rows */
+/* tr{transition: 0.35s} */
+/* th{border-left: 1px solid black;} */
+
+/* Prevent cells layout move */
+tr td:first-child {border-left: 4px solid transparent;}
+/* Collumns headers border radius: */
+th:first-child { border-top-left-radius: 10px;}
+th:last-child { border-top-right-radius: 10px;}
+th{border-right: 0px solid transparent;}
+/* Selected cells left border*/
+tr.selected td:first-child { border-left-color: black;}/* border-top-left-radius: 10px; border-bottom-left-radius: 10px;*/
+
+tr:last-child td:first-child { border-bottom-left-radius: 10px;}
+
+tr:nth-child(2n) {background-color: rgb(223, 198, 198);}
+tr:nth-child(2n+1) {background-color: rgb(206, 223, 198);}
+
+tr:hover {
+    background-color: rgb(76, 196, 218);
+    transition: 0.3s;
+}
+
+tr.selected {
+    background-color: rgb(85, 197, 85);
+    /* transition: 0.0s; */
+}
+
+tr.fixedSelection td{
+    background-color: rgb(223, 204, 39);
+    /* transition: 0.0s; */
+    /* border: 4px solid black; */
+    font-weight: bold;
+}
+
+th {
+    background-color: #696969;
+    color: #fff;
+    position:sticky;
+    top: 0;
+    z-index: 2;
+    border-bottom: 1px solid black;
+}
+
+caption {
+    padding: 2px;
+    caption-side: top;
+    background-color: lavender;
+    border-radius: 10px;
+    border: 2px solid black;
+    font-weight: bold;
+}
+
+table {
+    border-collapse:collapse;
+    letter-spacing: 1px;
+    font-family: sans-serif;
+    font-size: .8rem;
+    background-color: transparent;
+    transition: 0.3s;
+}
+
+thead, tbody {
+    background-color: transparent;
+    display:block;
+}
+
+tbody {
+    overflow-y: overlay;    
+    overflow-x: hidden;
+    border-radius: 10px;
+}
+
+table ::-webkit-scrollbar {
+    width: 4px;
+    /* transition: 0.3s; */
+}
+
+table ::-webkit-scrollbar-thumb {
+    background: #a80000;
+    border-radius: 4px;
+}
+
+table ::-webkit-scrollbar-track {
+    margin-top:35px;
+    margin-bottom:5px;
+}
