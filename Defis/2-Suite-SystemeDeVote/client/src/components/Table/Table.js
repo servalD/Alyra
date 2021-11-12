@@ -3,10 +3,14 @@ import Row from './Row'
 import "./Table.css"
 
 class Table extends Component {
-    // Callbacks:
+    // --Callbacks:
     // onSelectionChanged
-    // Properties:
+    // --Properties:
     // data; columnsHandler; title
+    // -Data should be an array of object that must contains members (as columns cells) specified in columnsHandler
+    // -columnsHandler can be a list of needed columns names to be displayed or 
+    // an object that members are needed columns names and their corresponding value is a callback tacking original cell value of each row and returning his formated value
+    // A title can be specified and will be displayed at the top of the table
     constructor(props) {
         super(props)
     

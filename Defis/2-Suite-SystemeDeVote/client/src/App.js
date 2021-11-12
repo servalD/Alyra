@@ -7,24 +7,23 @@ import './components/Input/TextArea.css';
 import './components/List/List.css';
 // web3 and contracts import
 import Ieth from "./getWeb3";
-import VotingAPI from "./contracts/VotingAPI";
+import VotingWrapper from "./contracts/VotingWrapper";
 // Components import
 import ConnectedView from "./components/ConnectedView";
 
 class App extends Component {
   state = {
-    connectionStatus: 0,
-    contract: null,
-    tablesDatasVotes: [],
-    tablesDatasProposals: [],
+    connectionStatus: 0,// Metamask
+    contract: null,// Using web3 on VotingWrapper
+    Votes: [],
+    Proposals: [],
     currentVoteIndex: 0,
   };
 
   constructor(props) {
     super(props);
     this.Ieth = new Ieth();
-    this.connectedRef = React.createRef();
-    this.initialized = false;
+    // Object containing every needed callback for metamask events.
     this.metamaskEvents = {
       // connect: async (ev) => {console.log('Account Connected', ev)},// Unable to trigg it !!
       // disconnect: async (ev) => {console.log('Account Disconnected', ev)},// Unable to trigg it !!
@@ -34,93 +33,93 @@ class App extends Component {
           window.location.reload()
         } else {
           console.log('Account Disconnected');
-          this.Ieth.connectionStatus = 0;
+          this.Ieth.cleanupWeb3();
           this.setState({ connectionStatus: 0 });
         };
       },
       chainChanged: async (ev) => { console.log('Chain Changed', parseInt(ev));  window.location.reload()},
-      message: async (ev) => {
-        // if ()
-        console.log('Message', ev)
-      },
+      // message: async (ev) => {
+      //   // if ()
+      //   console.log('Message', ev)
+      // },
       recept: async (err) => {
         console.error(err)
       }
     };
     window.addEventListener('load', async () => { await this.connectWallet() })
-    window.addEventListener('unload', async () => { await this.Ieth.cleanupWeb3(this.metamaskEvents) })
+    window.addEventListener('unload', async () => { await this.Ieth.cleanupWeb3() })
     window.addEventListener('resize', this.reportWindowSize);
   }
 
-  reportWindowSize = async () => {
+  reportWindowSize = async () => {// Update for the backgroud size. (i have still many things to learn)
     var appDiv = document.getElementsByClassName('App')[0];
     var height = appDiv.scrollHeight <= window.innerHeight ? '100vh;' : 'max-content'
     var width = appDiv.scrollWidth <= window.innerWidth ? '100vw;' : 'max-content'
     appDiv.setAttribute("style", "height:" + height + 'px;' + "width:" + width);
 
   }
-
+  // Events tasks
   onVoted = async (voteIndex, voter, proposalId) => {
     if (this.Ieth.account.toLowerCase() === voter.toLowerCase()) {
       voteIndex = parseInt(voteIndex)
       proposalId = parseInt(proposalId)
-      const votesTableData = this.state.tablesDatasVotes
-      votesTableData[voteIndex].votedIndex = proposalId
-      this.setState({ tablesDatasVotes: votesTableData })
+      const Votes = this.state.Votes
+      Votes[voteIndex].votedIndex = proposalId
+      this.setState({ Votes: Votes })
     }
   }
 
   onNewVote = async (vote, index) => {
     vote = { id: index, Tips: vote[0], State: parseInt(vote[1]), Registered: vote[2], votedIndex: parseInt(vote[3]), owner: vote[4], winningProposal: parseInt(vote[5]) }
     await this.setState({
-      tablesDatasVotes: [...this.state.tablesDatasVotes, vote],
+      Votes: [...this.state.Votes, vote],
     })
     document.getElementById('voteTable').lastChild.click()
     document.getElementById('newVoteInput').value = ''
   }
   onProposalRegistered = async (voteIndex, proposalIndex, proposal) => {
     voteIndex = parseInt(voteIndex)
-    const proposalsByVote = this.state.tablesDatasProposals
-    if (!proposalsByVote[voteIndex])proposalsByVote.push([])
-    proposalsByVote[voteIndex].push({ id: proposalIndex, Proposal: proposal })
+    const Proposals = this.state.Proposals
+    if (!Proposals[voteIndex])Proposals.push([])
+    Proposals[voteIndex].push({ id: proposalIndex, Proposal: proposal })
     document.getElementById('proposalTable').lastChild.click()
     document.getElementById('stdInput').value = ''
-    this.setState({ tablesDatasProposals: proposalsByVote })
+    this.setState({ Proposals: Proposals })
   }
   onWorkflowStatusChanged = async (voteIndex, previousStatus, newStatus) => {
     voteIndex = parseInt(voteIndex)
-    const votesTableData = this.state.tablesDatasVotes
-    votesTableData[voteIndex].State = parseInt(newStatus)
+    const Votes = this.state.Votes
+    Votes[voteIndex].State = parseInt(newStatus)
     // console.log(previousStatus, newStatus)
-    this.setState({ tablesDatasVotes: votesTableData })
+    this.setState({ Votes: Votes })
   }
   onVoterRegistered = async (voteIndex, address) => {
     if (this.Ieth.account.toLowerCase() === address.toLowerCase()) {
       voteIndex = parseInt(voteIndex)
-      const votesTableData = this.state.tablesDatasVotes
-      votesTableData[voteIndex].Registered = 'Yes';
-      this.setState({ tablesDatasVotes: votesTableData })
+      const Votes = this.state.Votes
+      Votes[voteIndex].Registered = 'Yes';
+      this.setState({ Votes: Votes })
     }
     document.getElementById('stdInput').value = ''
   }
 
   connectWallet = async () => {
-    // Connecting to wallet status
+    // Connecting to wallet 
     this.reportWindowSize()
     console.log('connecting wallet...')
-    this.setState({ connectionStatus: 1 });
+    this.setState({ connectionStatus: 1 });//connecting status...
     const coStatus = await this.Ieth.setupWeb3(this.metamaskEvents);
 
-    if (coStatus === 2) {
-      this.contract = new VotingAPI(this.Ieth)
+    if (coStatus === 2) {// If connected
+      this.contract = new VotingWrapper(this.Ieth)
       await this.contract.setupContract(this.onNewVote, this.onProposalRegistered, this.onWorkflowStatusChanged, this.onVoterRegistered, this.onVoted)
       this.setState({
         contract: this.contract,
         connectionStatus: coStatus,
-        tablesDatasVotes: await this.contract.getVotesTableData(),
-        tablesDatasProposals: await this.contract.getProposalTableData()
+        Votes: await this.contract.getVotes(),
+        Proposals: await this.contract.getProposals()
       });
-    } else {
+    } else {// If not connected
       this.setState({ connectionStatus: coStatus });
       console.log('Wallet not connected ;')
       return;
@@ -152,7 +151,7 @@ class App extends Component {
               </div>
             </div>
           </div>
-          <ConnectedView parent={this} marging={10} currentVoteIndex={this.state.currentVoteIndex} selectVoteCallBack={(selectedIndex) => { this.setState({ currentVoteIndex: selectedIndex }) }} connectionStatus={this.state.connectionStatus === 2} contract={this.state.contract} data={this.state.tablesDatasVotes} tablesDatasProposals={this.state.tablesDatasProposals} ref={this.connectedRef}></ConnectedView>
+          <ConnectedView parent={this} marging={10} currentVoteIndex={this.state.currentVoteIndex} selectVoteCallBack={(selectedIndex) => { this.setState({ currentVoteIndex: selectedIndex }) }} connectionStatus={this.state.connectionStatus === 2} contract={this.state.contract} data={this.state.Votes} Proposals={this.state.Proposals}></ConnectedView>
         </div>
       </div>
     );

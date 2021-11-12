@@ -1,15 +1,15 @@
 import VotingContract from "./Voting.json";
 
-class VotingAPI {
-
+class VotingWrapper {
+  // Wrapper around the web3.eth.Contract object to make the front code more readable
   constructor(Ieth) {
-    this.Ieth = Ieth;
-    this.errorRegexpr = /reason": ?"(.+?)"/gm;
-    this.internalErrorRegExpr = /message": ?"(.+?)"/gm;
-    this.GanacheMultiEventFence = []
+    this.Ieth = Ieth;// Web3 provider
+    this.errorRegexpr = /reason": ?"(.+?)"/gm;// Errors from the contract
+    this.internalErrorRegExpr = /message": ?"(.+?)"/gm;// Errors from metamask
+    this.GanacheMultiEventFence = []// Event id list used to block already raised events (bug from ganache, metamask or this code...)
   }
 
-  static getStatusText(statusId) {
+  static getStatusText(statusId) {// Convert WorkflowStatus Enumeration id's from voting contract to the corresponding text
     if (typeof (statusId) === 'string') statusId = parseInt(statusId);
     switch (statusId) {
       case 0:
@@ -29,28 +29,28 @@ class VotingAPI {
     }
   }
 
-  handleError = async (error) => {
-    let message = this.errorRegexpr.exec(error.message);
-    if (!message) message = this.internalErrorRegExpr.exec(error.message);
+  handleError = async (error) => {// Error handler as callback in they contract call or send methods 
+    let message = this.errorRegexpr.exec(error.message);// If there is a contract error
+    if (!message) message = this.internalErrorRegExpr.exec(error.message);// If there is a metamask related error
     if (!message){
       console.error(error.message);
       alert(error.message);
-    }else{
+    }else{// Otherwise show all the message for unhandled errors
       console.error(message[1]);
       alert(message[1])
     }
   }
 
   contractSubscribe = async (eventName, callback) => {// Do subscribe on a separated method because of an unexpected multi subscription using a single code block!!!
-    console.log('API event subscribtion: ', eventName);
+    console.log('Wrapper event subscribtion: ', eventName);// And better factorisation.
     const event = await this.contract.events[eventName]();
     if (!event._events.data) await event.on('data', (event) => {if (!this.GanacheMultiEventFence.includes(event.id)){
                                                                   this.GanacheMultiEventFence.push(event.id);callback(event);
                                                                 }else{console.log('MultiEvent Detected on '+eventName+' !!!')}});
   }
 
-  getVotesTableData = async () => {
-    // Retrive the vote count and push all vote objects in an array.
+  getVotes = async () => {
+    // Retrive the vote count and push all votes formatted to an objects in an array.
     const voteCount = await this.getVoteCount();
     var data = [];
     let ret;
@@ -62,19 +62,19 @@ class VotingAPI {
   };
 
   getProposalByVote = async (voteIndex) => {
+    // Retrive the proposals count for the given vote and format it to an objects pushed into an array.
     const proposalCount = await this.getProposalCount(voteIndex);
     var data = [];
-    // console.log('getProposalByVote', proposalCount)
     for (let i = 0; i < proposalCount; i++) {
       data.push({ id: i, Proposal: await this.getProposalDescriptionById(voteIndex, i) });
     }
     return data
   }
 
-  getProposalTableData = async () => {
+  getProposals = async () => {
+    // Retrive the vote count and push all proposals by vote to an array
     const voteCount = await this.getVoteCount();
     var data = [];
-    // console.log('getProposalTableData', voteCount)
     for (let i = 0; i < voteCount; i++) {
       data.push(await this.getProposalByVote(i));
     }
@@ -90,12 +90,12 @@ class VotingAPI {
 
     const callFrom = { from: account };
 
-    this.contractMethods = []
-    for (let method of this.contract._jsonInterface) {
-      let interactionMethod = ''
-      let catchMethod = ''
-      let catchArgs = []
-      if (method.type === 'function') {
+    this.contractMethods = []// List all contracts methods which will be wrapped automaticaly
+    for (let method of this.contract._jsonInterface) {// Iterate on contracts entities
+      let interactionMethod = ''// Detect if the method is changing the contract state with stateMutability member and select between 'call' or 'send' interaction method
+      let catchMethod = ''// As the catch method is different for the call or the send interaction methods, so select the correct one
+      let catchArgs = []// catchArgs depending on the catchMethod
+      if (method.type === 'function') {// Filter only function and not events...
         console.log(method.name)
         this.contractMethods.push(method.name)
         interactionMethod = method.stateMutability === 'view' || method.stateMutability === 'pure' ? 'call' : 'send'
@@ -104,7 +104,7 @@ class VotingAPI {
         this[method.name] = async (...args) => await this.contract.methods[method.name](...args)[interactionMethod](callFrom)[catchMethod](...catchArgs)
       }
     }
-    // Events
+    // Manual event subscribtion to format callbacks input parameter inside this object (It could be better organized...)
     await this.contractSubscribe('VoteCreated', async (event) => { onNewVote(await this.getFullPersonalVoteInfo(event.returnValues[0]), event.returnValues[0]) })
     await this.contractSubscribe('ProposalRegistered', async (event) => {
       onProposalRegistered(event.returnValues[0],
@@ -120,4 +120,4 @@ class VotingAPI {
 
 }
 
-export default VotingAPI;
+export default VotingWrapper;

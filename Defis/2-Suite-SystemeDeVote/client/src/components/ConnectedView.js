@@ -1,14 +1,14 @@
 import React, { Component } from "react";
 import Table from './Table/Table';
-import VotingAPI from "../contracts/VotingAPI";
+import VotingWrapper from "../contracts/VotingWrapper";
 
 class ConnectedView extends Component {
-
+  // This component is only displayed if the contract is nicely interfaced.
   constructor(props) {
     super(props)
     this.proposalTableRef = React.createRef()
     this.voteTableRef = React.createRef()
-    this.onClickStaged = {
+    this.onClickStaged = {// To keep only one button on the vote interacion div, so it maps each onClick, text and visibility by status id
       10: { cb: undefined, txt: "", vis: () => false },
       0: {
         cb: () => { this.props.contract.authorize(this.props.currentVoteIndex, document.getElementById('stdInput').value) },
@@ -29,7 +29,7 @@ class ConnectedView extends Component {
       4: { cb: undefined, txt: "", vis: () => false },
       5: { cb: undefined, txt: "", vis: () => false },
     }
-    this.inputStaged = {
+    this.inputStaged = {// Same as the onClickStaged object but for the textArea (textHolder and visibility)
       10: { cb: undefined, txt: "", vis: () => false },
       0: { txt: "New member address", vis: () => this.isOwner() },
       1: { txt: "New proposal", vis: () => this.isRegistered() },
@@ -39,7 +39,7 @@ class ConnectedView extends Component {
       5: { txt: undefined, vis: () => false },
     }
   }
-
+  // Methods to avoid undefined referancing or call and to help
   hasVote() {
     return this.props.data.length > 0;
   }
@@ -96,7 +96,7 @@ class ConnectedView extends Component {
             data={data}
             columnsHandler={{
               'Tips': null,
-              'State': st => VotingAPI.getStatusText(st),
+              'State': st => VotingWrapper.getStatusText(st),
               'Registered': reg => reg ? '✔' : '✘',
               'owner': owner => owner ? '👑' : "✘"
             }}
@@ -128,7 +128,7 @@ class ConnectedView extends Component {
                        flexDirection: "column",
                        alignItems: 'center',
                        justifyContent: 'center',}}>
-            <h5 style={{ marginTop: '0px', marginBottom: '5px' }}>{"That's the " + VotingAPI.getStatusText(this.getCurrentState()) + " time" + (this.hasState(0) ? ' by the owner' : '')}</h5>
+            <h5 style={{ marginTop: '0px', marginBottom: '5px' }}>{"That's the " + VotingWrapper.getStatusText(this.getCurrentState()) + " time" + (this.hasState(0) ? ' by the owner' : '')}</h5>
             <button className={this.isOwner() && this.getCurrentState() !== 5 ? 'visible' : 'hidden'}
               style={{ marginTop: '0px', marginBottom: '5px' }}
               onClick={() => { contract.setNextWorkflowStatus(currentVoteIndex) }}>Next status</button>
