@@ -1,12 +1,16 @@
 import Web3 from "web3";
 import detectEthereumProvider from '@metamask/detect-provider';
 
+var LogEnabled = false;
+var myLogger = (...args) => {if (LogEnabled)console.log(...args)};
+
 class Ieth {
   constructor() {
     this.web3 = null;
     this.connectionStatus = 0;
     this.account = '';
     this.expectedNetworkId = 5777;
+    this.expectedChaineId = 1337;
   }
 
   getStatusText() {
@@ -33,7 +37,7 @@ class Ieth {
   async cleanupWeb3() {
     // Check if a connection is already alive.
     if (this.connectionStatus === 2) {
-      console.log('Disconnecting events...')
+      myLogger('Disconnecting events...')
       const eth = this.web3.currentProvider
       // Get connected events names from the eth API to avoid disconnecting non-existant event
       const existingEvents = await eth.eventNames();
@@ -42,37 +46,37 @@ class Ieth {
           await eth.on(event, this.events[event]);
         }
       }
-      console.log('Events disconnected ;')
+      myLogger('Events disconnected ;')
       this.connectionStatus = 0;
       this.web3 = null;
       this.account = ''
-      console.log('Provider disconnected ;')
+      myLogger('Provider disconnected ;')
     } else console.warn('Provider already disconnected !!')
   }
 
   async setupWeb3(events) {
     // Check if a connection is already alive and cleanup the object if it's the case
-    if (this.connectionStatus == 2) this.cleanupWeb3();
+    if (this.connectionStatus === 2) this.cleanupWeb3();
     try {// Catch all unexpected connection errors
       let web3 = null;
       const provider = await detectEthereumProvider();
 
       if (provider) {// If the modern way is working
         web3 = new Web3(provider);
-        console.log('loaded ethereum provider ;');
+        myLogger('loaded ethereum provider ;');
       }
       else if (window.ethereum) {// Else if the other modern way if working too
         web3 = new Web3(window.ethereum);
-        console.log('loaded window.ethereum ;');
+        myLogger('loaded window.ethereum ;');
       }
       else if (window.web3) {// Check the older way them
         // Use Mist/MetaMask's provider.
-        console.log("Injected web3 detected ;");
+        myLogger("Injected web3 detected ;");
         web3 = window.web3;
       }
       // Fallback to localhost; use dev console port by default... (not working for now!!!)
       else {
-        console.log("No web3 instance injected, using Local web3...");
+        myLogger("No web3 instance injected, using Local web3...");
         const provider = new Web3.providers.HttpProvider("http://127.0.0.1:7545");
         web3 = new Web3(provider);
       }
@@ -80,7 +84,7 @@ class Ieth {
         // If a network is expected (eg. using id 5777 for testing on ganache) filter it, otherwise set "expectedNetworkId" to 0.
         if (this.expectedNetworkId === 0 || await web3.eth.net.getId() === this.expectedNetworkId) {
           this.web3 = web3;
-          console.log('Connecting Metamask events...');
+          myLogger('Connecting Metamask events...');
           const eth = web3.currentProvider;
           // Get connected events names from the eth API to avoid connecting already existant event
           const existingEvents = await eth.eventNames();
@@ -90,11 +94,12 @@ class Ieth {
             }
           }
           this.events = events;// Keep the ref for the cleanup methode
-          console.log('Events connected ;\nAsk for a metamask connection...')
+          myLogger('Events connected ;\nAsk for a metamask connection...')
           await web3.currentProvider.request({ method: 'eth_requestAccounts' })// Use the modern way to ensure the metamask connection is alive and
             .then((e) => { this.account = e[0] });// to retrive the current selected account address
-          console.log('Metamask connection completed ;')
+          myLogger('Metamask connection completed ;')
         } else {
+          this.web3 = web3;
           this.connectionStatus = -4// Unexpected network id!!
           return -4
         }
@@ -122,6 +127,14 @@ class Ieth {
       this.connectionStatus = -2// Metamask not installed!!
       return -2
     }
+  }
+
+  async switchNetwork(){
+    await this.web3.currentProvider.request({
+      method: "wallet_switchEthereumChain",
+      params: [{ chainId: '0x'+this.expectedChaineId.toString(16)}]
+    }).catch(err => {console.error(err.message); alert(/message": ?"(.+?)"/gm.exec(err)[1])})
+    window.location.reload()
   }
 }
 

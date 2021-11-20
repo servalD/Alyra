@@ -1,6 +1,10 @@
 import React, { Component } from "react";
 import Table from './Table/Table';
 import VotingWrapper from "../contracts/VotingWrapper";
+import Web3 from "web3";
+
+var LogEnabled = false;
+var myLogger = (...args) => {if (LogEnabled)console.log(...args)};
 
 class ConnectedView extends Component {
   // This component is only displayed if the contract is nicely interfaced.
@@ -11,12 +15,24 @@ class ConnectedView extends Component {
     this.onClickStaged = {// To keep only one button on the vote interacion div, so it maps each onClick, text and visibility by status id
       10: { cb: undefined, txt: "", vis: () => false },
       0: {
-        cb: () => { this.props.contract.authorize(this.props.currentVoteIndex, document.getElementById('stdInput').value) },
+        cb: () => { 
+          const addr = document.getElementById('stdInput').value;
+          if (!Web3.utils.isAddress(addr)) {
+            alert('Input should be a valide address!');
+            document.getElementById('stdInput').value='';
+            return}
+          this.props.contract.authorize(this.props.currentVoteIndex, addr) 
+        },
         txt: "Register new member",
         vis: () => this.isOwner()
       },
       1: {
-        cb: () => { this.props.contract.newProposal(this.props.currentVoteIndex, document.getElementById('stdInput').value) },
+        cb: () => { const proposal = document.getElementById('stdInput').value;
+          if (proposal===''){
+            alert('Input text should not be empty!');
+            return;}
+          this.props.contract.newProposal(this.props.currentVoteIndex, proposal) 
+        },
         txt: "Create new proposal",
         vis: () => this.isRegistered()
       },
@@ -41,35 +57,35 @@ class ConnectedView extends Component {
   }
   // Methods to avoid undefined referancing or call and to help
   hasVote() {
-    return this.props.data.length > 0;
+    return this.props.Votes.length > 0;
   }
 
   hasProposal() {
-    if (this.hasVote() && this.props.tablesDatasProposals[this.props.currentVoteIndex]) return this.props.tablesDatasProposals[this.props.currentVoteIndex].length;
+    if (this.hasVote() && this.props.Proposals[this.props.currentVoteIndex]) return this.props.Proposals[this.props.currentVoteIndex].length;
     else return false;
   }
 
   hasVoted() {
-    if (this.hasVote()) return this.props.data[this.props.currentVoteIndex].votedIndex > -1;
+    if (this.hasVote()) return this.props.Votes[this.props.currentVoteIndex].votedIndex > -1;
     else return false;
   }
 
   isOwner() {
-    if (this.hasVote()) return this.props.data[this.props.currentVoteIndex].owner;
+    if (this.hasVote()) return this.props.Votes[this.props.currentVoteIndex].owner;
     else return false;
   }
 
   isRegistered() {
-    if (this.hasVote()) return this.props.data[this.props.currentVoteIndex].Registered;
+    if (this.hasVote()) return this.props.Votes[this.props.currentVoteIndex].Registered;
   }
 
   hasState(state) {
-    if (this.hasVote()) return this.props.data[this.props.currentVoteIndex].State === state;
+    if (this.hasVote()) return this.props.Votes[this.props.currentVoteIndex].State === state;
     else return false;
   }
 
   getCurrentState() {
-    if (this.hasVote()) return this.props.data[this.props.currentVoteIndex].State;
+    if (this.hasVote()) return this.props.Votes[this.props.currentVoteIndex].State;
     else return 10;
   }
 
@@ -78,9 +94,9 @@ class ConnectedView extends Component {
   }
 
   render() {
-    console.log('Render connected view')
+    myLogger('Render connected view')
     if (!this.props.connectionStatus) return (<p></p>);
-    const { data, contract, currentVoteIndex } = this.props
+    const { Votes, contract, currentVoteIndex } = this.props
     return (
       <div id={this.props.id} style={{
         marginTop: 25,
@@ -89,11 +105,12 @@ class ConnectedView extends Component {
         alignItems: "center",
         justifyContent: 'space-around'
       }}>
-        <div style={{ display: 'block' }}>
+        <div style={{ display: 'flex', flexDirection:'column' }}>
           <Table id='voteTable'
+          title='Voting list'
             maxHeight={200}
-            maxWidth={500}
-            data={data}
+            width={500}
+            data={Votes}
             columnsHandler={{
               'Tips': null,
               'State': st => VotingWrapper.getStatusText(st),
@@ -104,8 +121,8 @@ class ConnectedView extends Component {
             ref={this.voteTableRef}
             visible={this.hasVote()} />
           <div style={{ marginBottom: 10, display: 'flex', flexDirection: "row", alignItems: 'stretch' }}>
-            <textarea id="newVoteInput" type="text" placeholder="Vote thematic" style={{ width: 400 }}></textarea>
-            <button onClick={() => { contract.newVote(document.getElementById('newVoteInput').value) }} style={{ width: 95 }}>Create new vote</button>
+            <textarea id="newVoteInput" type="text" placeholder="Vote thematic" style={{ width: 400, borderTopRightRadius: '0px', borderBottomRightRadius: '0px' }}></textarea>
+            <button onClick={() => { contract.newVote(document.getElementById('newVoteInput').value) }} style={{ width: 95, borderBottomRightRadius: '10px',borderTopRightRadius: '10px', borderWidth: 1 }}>Create new vote</button>
           </div>
         </div>
         <div className={this.hasVote() ? 'visible' : 'hidden'}
@@ -117,7 +134,7 @@ class ConnectedView extends Component {
             display: 'flex',
             flexDirection: "column",
             alignItems: 'center',
-            justifyContent: 'center',
+            justifyContent: 'top',
             border: '1px solid black',
             borderRadius: 10,
             backdropFilter: 'blur(5px)',
@@ -143,12 +160,13 @@ class ConnectedView extends Component {
                 style={{ maxWidth: 80 }}>{this.onClickStaged[this.getCurrentState()].txt}</button>
             </div>
             <Table id='proposalTable'
-              height={200}
+              updateOn={this.props.Votes}
+              maxHeight={195}
               maxWidth={250}
-              data={this.hasProposal() ? this.props.tablesDatasProposals[currentVoteIndex] : []}
+              data={this.hasProposal() ? this.props.Proposals[currentVoteIndex] : []}
               columnsHandler={['Proposal']}
               ref={this.proposalTableRef}
-              fixedSelection={this.hasState(5) ? 'None' : this.hasVoted() ? this.props.data[currentVoteIndex].votedIndex : this.hasState(3) || this.hasState(4) ? undefined : -1}
+              fixedSelection={this.hasState(5) ? undefined : this.hasVoted() ? this.props.Votes[currentVoteIndex].votedIndex : this.hasState(3) || this.hasState(4) ? undefined : -1}
               visible={this.hasProposal()} />
           </div>
           <div className={this.getCurrentState()===5 ? 'visible' : 'hidden'}
@@ -157,7 +175,7 @@ class ConnectedView extends Component {
                        alignItems: 'center',
                        justifyContent: 'center',}}>
             <p style={{marginBottom: '4px'}}>The winning proposal is:</p>
-            <p style={{fontFamily: 'cursive'}}>{this.getCurrentState()===5 ? this.props.tablesDatasProposals[currentVoteIndex][data[currentVoteIndex].winningProposal].Proposal : ''}</p>
+            <p style={{fontFamily: 'cursive'}}>{this.getCurrentState()===5 ? this.props.Proposals[currentVoteIndex][Votes[currentVoteIndex].winningProposal].Proposal : ''}</p>
           </div>
         </div>
       </div>

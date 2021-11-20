@@ -11,6 +11,9 @@ import VotingWrapper from "./contracts/VotingWrapper";
 // Components import
 import ConnectedView from "./components/ConnectedView";
 
+var LogEnabled = false;
+var myLogger = (...args) => {if (LogEnabled)console.log(...args)};
+
 class App extends Component {
   state = {
     connectionStatus: 0,// Metamask
@@ -25,26 +28,17 @@ class App extends Component {
     this.Ieth = new Ieth();
     // Object containing every needed callback for metamask events.
     this.metamaskEvents = {
-      // connect: async (ev) => {console.log('Account Connected', ev)},// Unable to trigg it !!
-      // disconnect: async (ev) => {console.log('Account Disconnected', ev)},// Unable to trigg it !!
       accountsChanged: async (ev) => {
         if (ev.length) {
-          console.log('Account Changed', ev[0]);
-          window.location.reload()
+          myLogger('Account Changed', ev[0]);
         } else {
-          console.log('Account Disconnected');
+          myLogger('Account Disconnected');
           this.Ieth.cleanupWeb3();
           this.setState({ connectionStatus: 0 });
         };
+        window.location.reload()
       },
-      chainChanged: async (ev) => { console.log('Chain Changed', parseInt(ev));  window.location.reload()},
-      // message: async (ev) => {
-      //   // if ()
-      //   console.log('Message', ev)
-      // },
-      recept: async (err) => {
-        console.error(err)
-      }
+      chainChanged: async (ev) => { myLogger('Chain Changed', parseInt(ev));  window.location.reload()},
     };
     window.addEventListener('load', async () => { await this.connectWallet() })
     window.addEventListener('unload', async () => { await this.Ieth.cleanupWeb3() })
@@ -70,7 +64,7 @@ class App extends Component {
   }
 
   onNewVote = async (vote, index) => {
-    vote = { id: index, Tips: vote[0], State: parseInt(vote[1]), Registered: vote[2], votedIndex: parseInt(vote[3]), owner: vote[4], winningProposal: parseInt(vote[5]) }
+    vote = { id: parseInt(index), Tips: vote[0], State: parseInt(vote[1]), Registered: vote[2], votedIndex: parseInt(vote[3]), owner: vote[4], winningProposal: parseInt(vote[5]) }
     await this.setState({
       Votes: [...this.state.Votes, vote],
     })
@@ -81,7 +75,7 @@ class App extends Component {
     voteIndex = parseInt(voteIndex)
     const Proposals = this.state.Proposals
     if (!Proposals[voteIndex])Proposals.push([])
-    Proposals[voteIndex].push({ id: proposalIndex, Proposal: proposal })
+    Proposals[voteIndex].push({ id: parseInt(proposalIndex), Proposal: proposal })
     document.getElementById('proposalTable').lastChild.click()
     document.getElementById('stdInput').value = ''
     this.setState({ Proposals: Proposals })
@@ -90,13 +84,14 @@ class App extends Component {
     voteIndex = parseInt(voteIndex)
     const Votes = this.state.Votes
     Votes[voteIndex].State = parseInt(newStatus)
-    // console.log(previousStatus, newStatus)
+    // myLogger(previousStatus, newStatus)
     this.setState({ Votes: Votes })
   }
   onVoterRegistered = async (voteIndex, address) => {
     if (this.Ieth.account.toLowerCase() === address.toLowerCase()) {
       voteIndex = parseInt(voteIndex)
       const Votes = this.state.Votes
+      if (voteIndex>Votes.length) throw new Error('onVoterRegistered Index error: Given vote index: '+voteIndex+' Max: '+Votes.length)
       Votes[voteIndex].Registered = 'Yes';
       this.setState({ Votes: Votes })
     }
@@ -106,7 +101,7 @@ class App extends Component {
   connectWallet = async () => {
     // Connecting to wallet 
     this.reportWindowSize()
-    console.log('connecting wallet...')
+    myLogger('connecting wallet...')
     this.setState({ connectionStatus: 1 });//connecting status...
     const coStatus = await this.Ieth.setupWeb3(this.metamaskEvents);
 
@@ -121,15 +116,16 @@ class App extends Component {
       });
     } else {// If not connected
       this.setState({ connectionStatus: coStatus });
-      console.log('Wallet not connected ;')
+      if (coStatus===-4) this.Ieth.switchNetwork()
+      myLogger('Wallet not connected ;')
       return;
     }
-    console.log('Wallet connected ;')
+    myLogger('Wallet connected ;')
 
   };
 
   render() {
-    console.log('render app')
+    myLogger('render app')
     return (
       <div className="App" >
         <div style={{maxWidth:1000}}>
@@ -137,7 +133,7 @@ class App extends Component {
             <h1 style={{ marginLeft: 40 }} >Voting platform using ethereum</h1>
             <button className="fx" style={{ marginRight: 30 }} onClick={this.state.connectionStatus < 1 ? () => { this.connectWallet() } : () => 0} >{this.Ieth.getStatusText()}</button>
           </div>
-          <p style={{ marginLeft: 25 }}>The principe of this Dapp is quit simple and is comming from an Alyra exercise. It's my first webpage ever so please, be forgiving.</p>
+          <p style={{ marginLeft: 25 }}>The principe of this Dapp is comming from an Alyra exercise. I'm glad to show you my firs web page!</p>
           <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-evenly', alignItems: "center" }}>
             <img src="/Vote1.png" alt="Hand votting in the box" style={{ width: 256 }}></img>
             <div style={{ marginLeft: 15 }}>
@@ -151,7 +147,7 @@ class App extends Component {
               </div>
             </div>
           </div>
-          <ConnectedView parent={this} marging={10} currentVoteIndex={this.state.currentVoteIndex} selectVoteCallBack={(selectedIndex) => { this.setState({ currentVoteIndex: selectedIndex }) }} connectionStatus={this.state.connectionStatus === 2} contract={this.state.contract} data={this.state.Votes} Proposals={this.state.Proposals}></ConnectedView>
+          <ConnectedView parent={this} marging={10} currentVoteIndex={this.state.currentVoteIndex} selectVoteCallBack={(selectedIndex) => { this.setState({ currentVoteIndex: selectedIndex }) }} connectionStatus={this.state.connectionStatus === 2} contract={this.state.contract} Votes={this.state.Votes} Proposals={this.state.Proposals}></ConnectedView>
         </div>
       </div>
     );

@@ -25,7 +25,6 @@ h1 {
 .App-header {
   background-color: #282c34;
   min-height: 100vh;
-  
   font-size: calc(10px + 2vmin);
 }
 
@@ -38,16 +37,52 @@ div{
 }
 
 .visible{
-  visibility: visible;
-  /* display:flex; */
-  opacity: 1;
+  /* visibility: visible; */
+  display:flexbox;
+  /* opacity: 1; */
   /* position: relative; */
-  transition: 0.5s;
+  /* transition: 0.5s; */
+  animation: fadeInFromNone 0.5s forwards;
+  /* transition: display 0.51s; */
 }
 .hidden{
-  visibility: hidden;
-  /* display:none; */
-  opacity: 0;
+  /* visibility: hidden; */
+  display:none;
+  /* opacity: 0; */
   /* position: absolute; */
-  transition: 0.5s;
+  /* transition: 0.5s; */
+  animation: fadeOutFromTable 0.5s forwards;
+  transition: display 0.51s;
+}
+
+@keyframes fadeInFromNone {
+  0% {
+      display: none;
+      opacity: 0;
+  }
+
+  1% {
+      display: flexbox;
+      opacity: 0;
+  }
+
+  100% {
+      display: flexbox;
+      opacity: 1;
+  }
+}
+
+@keyframes fadeOutFromTable {
+  0% {
+      display: flexbox;
+      opacity: 1;
+  }
+  1% {
+    display: flexbox;
+    opacity: 1;
+}
+  100% {
+    display: none;
+    opacity: 0;
+}
 }

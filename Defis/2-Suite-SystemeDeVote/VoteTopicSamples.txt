@@ -1,13 +1,24 @@
 Which restaurant for the lunch?
-Which crypto will raise?
-Ceci est un teste de sujet de vote ultra long pour voir comment reagie l'UI.
+Libanais
+Asiatic
+Othoman
+Français
+Turc
+Coréen
 
+Which crypto will raise?
+RSR
+DOT
+ICP
+SOL
 
 Very long proposal to see how the UI will react.
-libanais
 Simple proposal
 Second proposal
 Third proposal
 Fourth proposal
 Fifth proposal
 Next proposal
+
+0x78DE02Cf0Ac7DC475784D349b9bf2240635d0C26
+0x3e949CA73a54D31Ffe14bDf3600F6A230e6f44e5

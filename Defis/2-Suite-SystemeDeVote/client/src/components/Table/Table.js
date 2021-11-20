@@ -2,6 +2,9 @@ import React, { Component } from 'react'
 import Row from './Row'
 import "./Table.css"
 
+var LogEnabled = false;
+var myLogger = (...args) => {if (LogEnabled)console.log(...args)};
+
 class Table extends Component {
     // --Callbacks:
     // onSelectionChanged
@@ -19,6 +22,7 @@ class Table extends Component {
         }
     }
     render() {
+        myLogger('Render Table')
         let tableHeader;
         const onSelectedCB = this.props.onSelectionChanged ? this.props.onSelectionChanged : () =>{};
         const tableRows = this.props.data.map((vote => <Row columnsHandler={this.props.columnsHandler} 
@@ -35,7 +39,7 @@ class Table extends Component {
         
         return (
             <table className={this.props.visible ? 'visible' : 'hidden'}>
-                <tbody id={this.props.id} style={{maxHeight: this.props.maxHeight, maxWidth: this.props.maxWidth}} width={this.props.width} height={this.props.height}>
+                <tbody id={this.props.id} style={{maxHeight: this.props.maxHeight, maxWidth: this.props.maxWidth, width:this.props.width, height:this.props.height}}>
                     <tr>
                         {tableHeader}
                     </tr>

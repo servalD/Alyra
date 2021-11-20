@@ -1,12 +1,57 @@
 import VotingContract from "./Voting.json";
 
+var LogEnabled = false;
+var myLogger = (...args) => { if (LogEnabled) console.log(...args) };
+
 class VotingWrapper {
   // Wrapper around the web3.eth.Contract object to make the front code more readable
   constructor(Ieth) {
     this.Ieth = Ieth;// Web3 provider
-    this.errorRegexpr = /reason": ?"(.+?)"/gm;// Errors from the contract
-    this.internalErrorRegExpr = /message": ?"(.+?)"/gm;// Errors from metamask
+    this.errorRegexpr = /reason": ?"(.+?)"/m;// Errors from the contract
+    this.internalErrorRegExpr = /message": ?"(.+?)"/m;// Errors from metamask
     this.GanacheMultiEventFence = []// Event id list used to block already raised events (bug from ganache, metamask or this code...)
+  }
+
+  static getTextError(errorID) {
+    if (typeof (errorID) === 'string') errorID = parseInt(errorID);
+    let message = '';
+    switch (errorID) {
+      case 0:
+        message = 'Ownable: caller can be only the owner of the vote'; break;
+      case 1:
+        message = 'Listed: caller has not been registered by the owner'; break;
+      case 2:
+        message = 'Ownable or listed only'; break;
+      case 3:
+        message = 'Tips should not be empty'; break;
+      case 4:
+        message = 'The vote is already done'; break;
+      case 5:
+        message = 'We should have at least two voters to continue the workflow'; break;
+      case 6:
+        message = "We should have at least one Proposal to continue the workflow"; break;
+      case 7:
+        message = 'Unable to register anyone after the RegisteringVoters workflow status'; break;
+      case 8:
+        message = 'Address already registered'; break;
+      case 9:
+        message = 'Unable to register any proposals. Proposals Registration not started or already ended'; break;
+      case 10:
+        message = 'Unable to vote while the current workflow status is not VotingSessionStarted'; break;
+      case 11:
+        message = "You can t vote twice"; break;
+      case 12:
+        message = 'votedProposalId doesn t exist'; break;
+      case 13:
+        message = "Given vote index doesn't exist"; break;
+      case 14:
+        message = "This address has not voted"; break;
+      case 15:
+        message = "Vote not tallied yet"; break;
+      default:
+        message = 'Undefined Error'; break;
+    }
+    return "Contract has been reverted:\n" + message;
   }
 
   static getStatusText(statusId) {// Convert WorkflowStatus Enumeration id's from voting contract to the corresponding text
@@ -29,24 +74,28 @@ class VotingWrapper {
     }
   }
 
-  handleError = async (error) => {// Error handler as callback in they contract call or send methods 
+  handleError = async (error) => {// Error handler as callback in they contract call or send methods
     let message = this.errorRegexpr.exec(error.message);// If there is a contract error
-    if (!message) message = this.internalErrorRegExpr.exec(error.message);// If there is a metamask related error
-    if (!message){
-      console.error(error.message);
-      alert(error.message);
-    }else{// Otherwise show all the message for unhandled errors
-      console.error(message[1]);
-      alert(message[1])
+    if (message) { message = VotingWrapper.getTextError(message[1]) }
+    else { // If there is a metamask related error
+      message = this.internalErrorRegExpr.exec(error.message) 
+      if (message) { message = message[1] }
+      else { message = error.message }// Otherwise show all the message for unhandled errors
     }
+    console.error(message);
+    message = message + '\n\nYou can reload the app or retry the transaction to fix the problem.'
+    if (message.includes("the tx doesn't")) message = message + '\nPeraps to restart ganache!'
+    alert(message)
   }
 
   contractSubscribe = async (eventName, callback) => {// Do subscribe on a separated method because of an unexpected multi subscription using a single code block!!!
-    console.log('Wrapper event subscribtion: ', eventName);// And better factorisation.
+    myLogger('Wrapper event subscribtion: ', eventName);// And better factorisation.
     const event = await this.contract.events[eventName]();
-    if (!event._events.data) await event.on('data', (event) => {if (!this.GanacheMultiEventFence.includes(event.id)){
-                                                                  this.GanacheMultiEventFence.push(event.id);callback(event);
-                                                                }else{console.log('MultiEvent Detected on '+eventName+' !!!')}});
+    if (!event._events.data) await event.on('data', (event) => {
+      if (!this.GanacheMultiEventFence.includes(event.id)) {
+        this.GanacheMultiEventFence.push(event.id); callback(event);
+      } else { myLogger('MultiEvent Detected on ' + eventName + ' !!!') }
+    });
   }
 
   getVotes = async () => {
@@ -84,7 +133,7 @@ class VotingWrapper {
   setupContract = async (onNewVote, onProposalRegistered, onWorkflowStatusChanged, onVoterRegistered, onVoted) => {
     // Get the contract instance, link the ref on this object and attach tasks to events
     const { web3, account } = this.Ieth;
-    console.log('Smart contract instantiation...')
+    myLogger('Smart contract instantiation...')
     const networkId = await web3.eth.net.getId();
     this.contract = new web3.eth.Contract(VotingContract.abi, VotingContract.networks[networkId].address);
 
@@ -93,15 +142,31 @@ class VotingWrapper {
     this.contractMethods = []// List all contracts methods which will be wrapped automaticaly
     for (let method of this.contract._jsonInterface) {// Iterate on contracts entities
       let interactionMethod = ''// Detect if the method is changing the contract state with stateMutability member and select between 'call' or 'send' interaction method
-      let catchMethod = ''// As the catch method is different for the call or the send interaction methods, so select the correct one
-      let catchArgs = []// catchArgs depending on the catchMethod
       if (method.type === 'function') {// Filter only function and not events...
-        console.log(method.name)
+        myLogger('Wrapping method: ' + method.name)
         this.contractMethods.push(method.name)
         interactionMethod = method.stateMutability === 'view' || method.stateMutability === 'pure' ? 'call' : 'send'
-        catchMethod = interactionMethod === 'call' ? 'catch' : 'on'
-        catchArgs = interactionMethod === 'call' ? [this.handleError] : ['error', this.handleError]
-        this[method.name] = async (...args) => await this.contract.methods[method.name](...args)[interactionMethod](callFrom)[catchMethod](...catchArgs)
+        if (interactionMethod === 'send') {
+          this[method.name] = async (...args) => {
+            let ret = null;
+            await this.contract.methods[method.name](...args).call(callFrom)
+              .then(async () => {
+                ret = await this.contract.methods[method.name](...args).send(callFrom)
+                myLogger(method.name + '(' + method.inputs.map((e, i) => e.name + ": " + args[i]) + ")." + interactionMethod + "() => " + (typeof ret === 'object' ? JSON.stringify(ret) : ret))
+              })
+              .catch(this.handleError)
+            return ret;
+          }
+        }
+        else {
+          this[method.name] = async (...args) => {
+            let ret = null;
+            ret = await this.contract.methods[method.name](...args).call(callFrom)
+              .then((retu) => {myLogger(method.name + '(' + method.inputs.map((e, i) => e.name + ": " + args[i]) + ")." + interactionMethod + "() => " + (typeof retu === 'object' ? JSON.stringify(retu) : retu));return retu})
+              .catch(this.handleError)
+            return ret
+          }
+        }
       }
     }
     // Manual event subscribtion to format callbacks input parameter inside this object (It could be better organized...)
@@ -110,12 +175,13 @@ class VotingWrapper {
       onProposalRegistered(event.returnValues[0],
         event.returnValues[1],
         await this.getProposalDescriptionById(event.returnValues[0],
-          event.returnValues[1]))})
+          event.returnValues[1]))
+    })
     await this.contractSubscribe('WorkflowStatusChange', async (event) => { onWorkflowStatusChanged(event.returnValues[0], event.returnValues[1], event.returnValues[2]) })
     await this.contractSubscribe('VoterRegistered', async (event) => { onVoterRegistered(event.returnValues[0], event.returnValues[1]) })
     await this.contractSubscribe('Voted', async (event) => { onVoted(event.returnValues[0], event.returnValues[1], event.returnValues[2]) })
-    
-    console.log('Smart contract interfaced ;')
+
+    myLogger('Smart contract interfaced ;')
   }
 
 }
